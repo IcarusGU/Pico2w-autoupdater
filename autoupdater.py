@@ -23,19 +23,28 @@ def getAPIurl(url):
     branch = parts[5]
     return f"https://api.github.com/repos/{user}/{repo}/git/trees/{branch}?recursive=1"
 
-def currentInstall(target):
-    line = getFirstLine(target + "version.txt")
-    version = ''.join(char for char in line if char.isdigit())
-    return version
 
-def newestVersion():
+def getVersionTuple(ver):
     try:
-        path = getFirstLine("path.txt") + "version.txt"
+        return tuple(int(v) for v in ver.strip().lstrip('v').split('.'))
+    except (ValueError, AttributeError):
+        return (0,)
+
+def currentInstall(target):
+    try:
+        line = getFirstLine(target + "version.txt")
+        return getVersionTuple(line)
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return None
+    
+def newestVersion(path):
+    try:
+        path += "version.txt"
         response = urequests.get(path)
-        first_line = response.raw.readline().decode('utf-8').strip()
+        line = response.raw.readline().decode('utf-8').strip()
         response.close()
-        version = ''.join(char for char in first_line if char.isdigit())
-        return version
+        return getVersionTuple(line)
     except Exception as e:
         print(f"Error reading file: {e}")
         return None
@@ -61,59 +70,55 @@ def rm_rf(target):
 
 #Main functions
 def checkUpdates(targets):
-    currentInstalls = []
+    updatesNeeded = {}
+    for target, path in targets:            
+        if currentInstall(target) < newestVersion(path):
+            updatesNeeded[target] = path
+    return updatesNeeded
 
-    for target in range(len(targets)):
-        currentInstalls.append(currentInstall(target))
-    for install in currentInstalls:
-        
-    if currentInstall(targets) < newestVersion(targets):
-        return True
-    return False
-
-def Update(target):
-    path = getFirstLine("path.txt")
-    apiUrl = getAPIurl(path)
-    try: os.mkdir(target)
-    except: pass
-    try:
-        rm_rf(target)
-
+def Update(targets):
+    for target, path in targets:
+        apiUrl = getAPIurl(path)
+        try: os.mkdir(target)
+        except: pass
         try:
-            r = urequests.get(apiUrl, headers=headers)
-            data = r.json()
-            r.close()
-        except Exception as e:
-            print(f"API Error: ", e)
-            return
-        
-        for item in data['tree']:
-            filePath = item['path']
-            fileType = item['type']
+            rm_rf(target)
+
+            try:
+                r = urequests.get(apiUrl, headers=headers)
+                data = r.json()
+                r.close()
+            except Exception as e:
+                print(f"API Error: ", e)
+                return
             
-            locPath = f"{target}/{filePath}"
-            if fileType == "tree":
-                try:
-                    os.mkdir(locPath)
-                    print(f"Created Dir: {locPath}")
-                except:
-                    pass
-                    
-            elif fileType == "blob":
-                rawUrl = path + filePath
-                try:
-                    res = urequests.get(rawUrl, stream=True)
-                    with open(locPath, "wb") as f:
-                        while True:
-                            chunk = res.raw.read(512)
-                            if not chunk:
-                                break
-                            f.write(chunk)
-                except Exception as e:
-                    print(f"Failed to download {locPath}: ", e)
-                gc.collect()
-    except OSError as e:
-        print("Failed to update: ", e)
+            for item in data['tree']:
+                filePath = item['path']
+                fileType = item['type']
+                
+                locPath = f"{target}/{filePath}"
+                if fileType == "tree":
+                    try:
+                        os.mkdir(locPath)
+                        print(f"Created Dir: {locPath}")
+                    except:
+                        pass
+                        
+                elif fileType == "blob":
+                    rawUrl = path + filePath
+                    try:
+                        res = urequests.get(rawUrl, stream=True)
+                        with open(locPath, "wb") as f:
+                            while True:
+                                chunk = res.raw.read(512)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                    except Exception as e:
+                        print(f"Failed to download {locPath}: ", e)
+                    gc.collect()
+        except OSError as e:
+            print("Failed to update: ", e)
 
 #Wifi support
 def wifiAttempt(ssid, password):
@@ -121,12 +126,16 @@ def wifiAttempt(ssid, password):
     wlan.active(True)
     wlan.connect(ssid, password)
 
-    while wlan.status() != 3:
+    while wlan.status() != 3 and time < 10:
         print('Connecting to ssid: ', ssid)
         time.sleep(1)
-    print('Connected')
-    status = wlan.ifconfig()
-    print('IP Address = ' + status[0])
+        time +=1
+    if wlan.status() == 3:
+        print('Connected')
+        status = wlan.ifconfig()
+        print('IP Address = ' + status[0])
+    else: 
+        print('Wifi connectivity failure!')
 
 try:
     with open("wifi.txt", "r") as f:
