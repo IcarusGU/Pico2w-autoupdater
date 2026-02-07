@@ -2,17 +2,23 @@
 
 An autoupdater for the rasperry pi pico 2 W.
 
-The target is the directory you wish to replace. 
-In many cases it will be:
-../repo name
+targets, the passed parameter, should be a dictionary with:
+
+{
+    target = path
+}
+
+target is the relative file path to the directory you are updating, and path is the raw github link to the repo you are updating from. 
 
 ## Use
 *NOTE*
 
 
-Import autoupdater. Then, use autoupdater.checkUpdates() or autoupdater.Update(target). checkUpdates() returns true or false depending on if there is an update, and Update(target) returns 0 or 1 depending on if the update has been succesful. 
+Import autoupdater. Then, use autoupdater.checkUpdates(targets) or autoupdater.Update(targets). 
 
-If using an SD card, call Update(target) where target contains the mounting path to your sd card.
+checkUpdates(targets) returns a dictionary (structured correctly to be fed into Update()) of every repository within its input that has an available update, and Update(targets) returns 0 or 1 depending on if the update has been succesful. 
+
+If using an SD card, call Update(targets) where target contains the mounting path to your sd card.
 
 ## Setup instructions
 
@@ -27,6 +33,9 @@ Or, if you wish to only use a certain folder within the repo:
 https://raw.githubusercontent.com/IcarusGU/Pico2w-autoupdater/main/desiredFolder/
 
 Ensure that there is a file named version.txt within the git repo you are updating from, and that the file contains the version number on the first line. Additionally, version.txt must be top level within whatever folder you are pathing to.
+
+Versioning should be done in x.x.x format, or vX.X.X
+Do not include anything else first line.
 
 If it is desired, you may connect to wifi for this process by putting the desired wifi information within wifi.txt
 Put the wifi ssid on the first line, and wifi password on the second.

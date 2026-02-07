@@ -117,8 +117,10 @@ def Update(targets):
                     except Exception as e:
                         print(f"Failed to download {locPath}: ", e)
                     gc.collect()
+            return 0
         except OSError as e:
             print("Failed to update: ", e)
+            return 1
 
 #Wifi support
 def wifiAttempt(ssid, password):
